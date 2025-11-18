@@ -1,0 +1,113 @@
+openapi: 3.1.1
+info:
+  title: MeetingService API
+  description: Handles API calls for creation of new meetings and the meeting agenda / current status of meeting.
+  version: 0.1.0
+
+servers:
+  - url: http://api.example.com/v1
+
+paths:
+  /meetings:
+    post:
+      summary: Create a new meeting.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMeetingRequest"
+      responses:
+        "201":
+          description: Meeting successfully created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
+  /meetings/{id}/agenda:
+    post:
+      summary: Add a point to the agenda
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgendaItemRequest"
+      responses:
+        "201":
+          description: Agenda item added successfully
+    get:
+      summary: Get all agenda points
+      responses:
+        "200":
+          description: Agenda item added successfully
+components:
+  schemas:
+    Meeting:
+      type: object
+      description: A meeting.
+      properties:
+        meeting_id:
+          type: integer
+        meeting_name:
+          type: string
+        
+      required:
+        - meeting_id
+        - meeting_name
+
+    CreateMeetingRequest:
+      type: object
+      properties:
+        meeting_name:
+          type: string
+        
+      required:
+        - meeting_name
+        - position_name
+
+    AgendaItem:
+      oneOf:
+        - $ref: "#/components/schemas/ElectionAgendaItem"
+        - $ref: "#/components/schemas/MotionAgendaItem"
+        - $ref: "#/components/schemas/InfoAgendaItem"
+      discriminator:
+        propertyName: type
+        mapping:
+          election: "#/components/schemas/ElectionAgendaItem"
+          motion: "#/components/schemas/MotionAgendaItem"
+          info: "#/components/schemas/InfoAgendaItem"
+
+    ElectionAgendaItem:
+      type: object
+      description: A election item in a meeting's agenda.
+      properties:
+        type:
+          type: string
+          const: "election"
+
+    MotionAgendaItem:
+      type: object
+      description: A motion item in a meeting's agenda.
+      properties:
+        type:
+          type: string
+          const: "motion"
+    
+    InfoAgendaItem:
+      type: object
+      description: A generic info item in a meeting's agenda.
+      properties:
+        type:
+          type: string
+          const: "info"
+
+    
+
+    CreateAgendaItemRequest:
+      type: object
+      properties:
+        item:
+          $ref: "#/components/schemas/AgendaItem"
+      required:
+        - item
