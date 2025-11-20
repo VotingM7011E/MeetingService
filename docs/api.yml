@@ -62,7 +62,29 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Meeting"      
+                $ref: "#/components/schemas/Meeting"
+    patch:
+      summary: Update properties of a meeting (e.g., current agenda item)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMeetingRequest"
+      responses:
+        "200":
+          description: Meeting successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"
   /meetings/{id}/agenda:
     post:
       summary: Add a point to the agenda
@@ -137,6 +159,15 @@ components:
       required:
         - meeting_name
         - position_name
+
+    UpdateMeetingRequest:
+      type: object
+      description: Fields that may be updated in a meeting
+      properties:
+        current_item:
+          type: integer
+          description: Index of the currently active agenda item
+      additionalProperties: false
 
     AgendaItem:
       oneOf:

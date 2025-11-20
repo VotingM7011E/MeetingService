@@ -163,6 +163,61 @@ def get_meeting(id):
 
     return jsonify(serialize_meeting(meeting, agenda_items)), 200
 
+@app.patch("/meetings/<id>")
+def update_meeting(id):
+    """
+    PATCH /meetings/{id}
+    Update meeting fields such as current_item.
+    """
+    uid = to_uuid(id)
+    if not uid:
+        return jsonify({"error": "Invalid UUID"}), 400
+
+    meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+    if not meeting:
+        return jsonify({"error": "Meeting not found"}), 404
+
+    body = request.get_json()
+    if not body:
+        return jsonify({"error": "Request body required"}), 400
+
+    update_fields = {}
+
+    # Validate and update current_item
+    if "current_item" in body:
+        new_index = body["current_item"]
+
+        if type(new_index) is not int or new_index < 0:
+            return jsonify({"error": "current_item must be a non-negative integer"}), 400
+
+        # Count agenda items
+        item_count = mongo.db.agenda_items.count_documents({"meeting_id": uid})
+
+        # Check if index is within valid range
+        if new_index >= item_count:
+            return jsonify({
+                "error": "current_item is out of range",
+                "max_valid_index": max(item_count - 1, 0),
+                "agenda_items": item_count
+            }), 400
+
+        update_fields["current_item"] = new_index
+
+    if not update_fields:
+        return jsonify({"error": "No valid fields to update"}), 400
+
+    # Apply patch
+    mongo.db.meetings.update_one(
+        {"meeting_id": uid},
+        {"$set": update_fields}
+    )
+
+    # Return updated meeting
+    updated_meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+    items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
+
+    return jsonify(serialize_meeting(updated_meeting, items)), 200
+
 
 @app.post("/meetings/<id>/agenda")
 def add_agenda_item(id):
