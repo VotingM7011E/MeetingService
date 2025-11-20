@@ -24,9 +24,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Meeting"
+  /meetings/{id}/:  
+    get:
+      summary: Get meeting info     
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Successfully got meeting info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meeting"      
   /meetings/{id}/agenda:
     post:
       summary: Add a point to the agenda
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
       requestBody:
         required: true
         content:
@@ -38,9 +62,22 @@ paths:
           description: Agenda item added successfully
     get:
       summary: Get all agenda points
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Agenda item added successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgendaItem"
 components:
   schemas:
     Meeting:
@@ -48,9 +85,16 @@ components:
       description: A meeting.
       properties:
         meeting_id:
-          type: integer
+          type: string
+          format: uuid
         meeting_name:
           type: string
+        current_item:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AgendaItem"
         
       required:
         - meeting_id
@@ -85,6 +129,12 @@ components:
         type:
           type: string
           const: "election"
+        title:
+          type: string
+        positions:
+          type: array
+          items: 
+            type: string
 
     MotionAgendaItem:
       type: object
@@ -93,7 +143,24 @@ components:
         type:
           type: string
           const: "motion"
-    
+        title:
+          type: string
+        description:
+          type: string
+        base_motions:
+          type: array
+          items: 
+            $ref: "#/components/schemas/BaseMotion"
+
+    BaseMotion:
+      type: object
+      description: A motion included in the agenda
+      properties:
+        owner:
+          type: string
+        motion:
+          type: string
+        
     InfoAgendaItem:
       type: object
       description: A generic info item in a meeting's agenda.
@@ -101,8 +168,10 @@ components:
         type:
           type: string
           const: "info"
-
-    
+        title: 
+          type: string
+        description:
+          type: string
 
     CreateAgendaItemRequest:
       type: object
