@@ -5,9 +5,31 @@ info:
   version: 0.1.0
 
 servers:
-  - url: http://api.example.com/v1
+  - url: http://meeting-service.ltu-m7011e-2.se
 
 paths:
+  /code/{code}:
+    get: 
+      summary: Get meeting uuid from code
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+            minLength: 6
+            maxLength: 6
+      responses:
+        "200":
+          description: Successfully got meeting uuid from code
+          content:
+            text/plain:
+              schema:
+                type: string
+                format: uuid
+        "404":
+          description: Meeting code does not match any meetings
+
   /meetings:
     post:
       summary: Create a new meeting.
@@ -87,8 +109,14 @@ components:
         meeting_id:
           type: string
           format: uuid
+        meeting_code:
+          type: string
+          minLength: 6
+          maxLength: 6
+          example: "123456"
         meeting_name:
           type: string
+          example: "The Best Meeting!"
         current_item:
           type: integer
         items:

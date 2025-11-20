@@ -23,6 +23,14 @@ def to_uuid(id_str):
     except Exception:
         return None
 
+def generate_unique_meeting_code():
+    """Generate a unique 6-digit meeting code."""
+    while True:
+        code = f"{random.randint(0, 999999):06d}"  # always 6 digits
+        existing = mongo.db.meetings.find_one({"meeting_code": code})
+        if not existing:
+            return code
+
 
 def serialize_agenda_item(doc):
     """Convert MongoDB document into AgendaItem-format."""
@@ -77,18 +85,21 @@ def create_meeting():
         return jsonify({"error": "meeting_name required"}), 400
 
     meeting_id = str(uuid.uuid4())
+    meeting_code = generate_unique_meeting_code()
 
     mongo.db.meetings.insert_one({
         "meeting_id": meeting_id,
         "meeting_name": body["meeting_name"],
-        "current_item": 0
+        "current_item": 0,
+        "meeting_code": meeting_code
     })
 
     created = {
         "meeting_id": meeting_id,
         "meeting_name": body["meeting_name"],
         "current_item": 0,
-        "items": []
+        "items": [],
+        "meeting_code": meeting_code
     }
 
     return jsonify(created), 201
@@ -169,6 +180,23 @@ def get_agenda_items(id):
     ]
 
     return jsonify(agenda_items), 200
+
+@app.get("/code/<code>")
+def get_meeting_id_from_code(code):
+    """
+    GET /code/{code}
+    Returns the meeting UUID in plain text.
+    """
+
+    # Validate length & numeric
+    if len(code) != 6 or not code.isdigit():
+        return jsonify({"error": "Invalid meeting code format"}), 400
+
+    meeting = mongo.db.meetings.find_one({"meeting_code": code})
+    if not meeting:
+        return "", 404  # OpenAPI: empty 404 response
+
+    return meeting["meeting_id"], 200  # text/plain output
 
 
 # Root health check (for Kubernetes)
