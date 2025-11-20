@@ -1,5 +1,6 @@
+from flask import Flask, jsonify
+from flask_pymongo import PyMongo
 import os
-from flask import Flask
 
 app = Flask(__name__)
 
@@ -20,5 +21,6 @@ def test_db():
     docs = list(mongo.db.testcollection.find({}, {"_id": 0}))
 
     return jsonify({"documents": docs})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80)
