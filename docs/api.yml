@@ -175,7 +175,7 @@ components:
           type: string
         description:
           type: string
-        base_motions:
+        baseMotions:
           type: array
           items: 
             $ref: "#/components/schemas/BaseMotion"

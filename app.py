@@ -32,47 +32,86 @@ def generate_unique_meeting_code():
         if not existing:
             return code
 
-
-def serialize_agenda_item(doc):
-    """Convert MongoDB document into AgendaItem-format."""
-    if not doc:
-        return None
-
-    item = {
-        "type": doc["type"],
-    }
-
-    # Election item
-    if doc["type"] == "election":
-        item["title"] = doc["title"]
-        item["positions"] = doc["positions"]
-
-    # Motion item
-    elif doc["type"] == "motion":
-        item["title"] = doc["title"]
-        item["description"] = doc["description"]
-        item["base_motions"] = doc.get("base_motions", [])
-
-    # Info item
-    elif doc["type"] == "info":
-        item["title"] = doc["title"]
-        item["description"] = doc["description"]
-
-    return item
-
-
 def serialize_meeting(doc, items):
     """Combine meeting and agenda items into Meeting schema format."""
     return {
         "meeting_id": doc["meeting_id"],
         "meeting_name": doc["meeting_name"],
         "current_item": doc.get("current_item", 0),
-        "items": [serialize_agenda_item(i) for i in items]
+        "items": items
     }
 
+def verify_agenda_item(item):
+    """Verify that agenda item is of proper type and has proper data"""
+    if "type" not in item:
+        return jsonify({"error": "Agenda item must include type"}), 400
+
+    if ("title" not in item) or (type(item["title"]) is str):
+        return jsonify({"error": "Agenda item must have title"}), 400
+
+    match item["type"]:
+        case "election":
+            if "positions" not in item or not (type(item["positions"]) is list):
+                return jsonify({"error": "Election agenda item must have positions list"}), 400
+            for position in type["positions"]:
+                if not (type(position) is str):
+                    return jsonify({"error": "Election agenda item positions must be strings"}), 400
+        case "motion":
+            if "description" not in item or not (type(item["description"]) is str):
+                return jsonify({"error": "Motion agenda item must have description"}), 400
+
+            if "baseMotions" not in item or not (type(item["baseMotions"]) is list):
+                return jsonify({"error": "Motion agenda item must have baseMotions list"}), 400
+            for baseMotion in type["baseMotions"]:
+                if not (type(baseMotion) is object):
+                    return jsonify({"error": "Motion agenda item baseMotions must be objects"}), 400
+
+                if "owner" not in baseMotion or not (type(baseMotion["owner"]) is str):
+                    return jsonify({"error": "Motion agenda item baseMotions must have owner"}), 400
+                
+                if "motion" not in baseMotion or not (type(baseMotion["motion"]) is str):
+                    return jsonify({"error": "Motion agenda item baseMotions must have motion"}), 400
+                    
+        case "info":
+            if "description" not in item or not (type(item["description"]) is str):
+                return jsonify({"error": "Info agenda item must have description"}), 400
+            
+        case _:
+            return jsonify({"error": "Invalid agenda item type"}), 400
+            
+    return None
+
+def serialize_agenda_item(item):
+    """Verifies agenda item and return only proper data fields"""
+    result = verify_agenda_item(item)
+    if result is not None:
+        return result
+    
+    match item["type"]:
+        case "election":
+            return {
+                "type": item["type"],
+                "title": item["title"],
+                "positions": item["positions"] 
+            }
+        case "motion":
+            return {
+                "type": item["type"],
+                "title": item["title"],
+                "description": item["description"],
+                "baseMotions": item["baseMotions"]
+            }       
+        case "info":
+            return {
+                "type": item["type"],
+                "title": item["title"],
+                "description": item["description"] 
+            }
+        case _:
+            return jsonify({"error": "Invalid agenda item type"}), 400
 
 # ---------------------------
-# Routes matching OpenAPI spec
+# Endpoints
 # ---------------------------
 
 @app.post("/meetings")
@@ -143,14 +182,7 @@ def add_agenda_item(id):
     if not body or "item" not in body:
         return jsonify({"error": "item required"}), 400
 
-    item = body["item"]
-
-    # Validate type (election, motion, info)
-    if "type" not in item:
-        return jsonify({"error": "Agenda item must include type"}), 400
-
-    if item["type"] not in ["election", "motion", "info"]:
-        return jsonify({"error": "Invalid agenda item type"}), 400
+    item = serialize_agenda_item(body["item"])
 
     # Insert agenda item under meeting
     mongo.db.agenda_items.insert_one({
@@ -175,10 +207,7 @@ def get_agenda_items(id):
     if not meeting:
         return jsonify({"error": "Meeting not found"}), 404
 
-    agenda_items = [
-        serialize_agenda_item(i)
-        for i in mongo.db.agenda_items.find({"meeting_id": uid})
-    ]
+    agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
     return jsonify(agenda_items), 200
 
@@ -195,9 +224,9 @@ def get_meeting_id_from_code(code):
 
     meeting = mongo.db.meetings.find_one({"meeting_code": code})
     if not meeting:
-        return "", 404  # OpenAPI: empty 404 response
+        return "", 404
 
-    return meeting["meeting_id"], 200  # text/plain output
+    return meeting["meeting_id"], 200
 
 
 # Root health check (for Kubernetes)
