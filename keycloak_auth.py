@@ -22,14 +22,25 @@ def get_jwks():
     jwks_cache["jwks"] = jwks
     return jwks
 
+def get_signing_key(token):
+    jwks = requests.get(JWKS_URL).json()
+    header = jwt.get_unverified_header(token)
+    kid = header["kid"]
+
+    for key in jwks["keys"]:
+        if key["kid"] == kid:
+            return key
+
+    raise Exception("Public key not found in JWKS")
 
 def verify_token(token):
     """Verify and decode JWT using Keycloak public keys."""
     try:
-        jwks = get_jwks()
+        key = get_signing_key(token)
+
         return jwt.decode(
             token,
-            jwks,
+            key,
             algorithms=["RS256"],
             audience=KEYCLOAK_AUDIENCE,
             issuer=KEYCLOAK_ISSUER,
