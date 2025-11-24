@@ -23,7 +23,7 @@ def get_jwks():
     return jwks
 
 def get_signing_key(token):
-    jwks = requests.get(JWKS_URL).json()
+    jwks = requests.get(KEYCLOAK_JWKS_URL).json()
     header = jwt.get_unverified_header(token)
     kid = header["kid"]
 
