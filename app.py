@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_pymongo import PyMongo
+from keycloak_auth import keycloak_protect
 import os
 import uuid
 import random
@@ -288,6 +289,18 @@ def get_meeting_id_from_code(code):
 @app.get("/")
 def root():
     return "MeetingService API running"
+
+@app.route("/private")
+@keycloak_protect
+def private():
+    return jsonify({
+        "message": "Protected route",
+        "user": request.user
+    })
+
+@app.route("/public")
+def public():
+    return {"message": "Public route"}
 
 
 if __name__ == "__main__":
