@@ -169,73 +169,78 @@ def get_meeting(id):
     GET /meetings/{id}/
     Return meeting info.
     """
-    uid = to_uuid(id)
-    if not uid:
-        return jsonify({"error": "Invalid UUID"}), 400
+    if request.method == "OPTIONS": # CORS preflight
+        return _build_cors_preflight_response()
+    elif request.method == "GET":
+        uid = to_uuid(id)
+        if not uid:
+            return jsonify({"error": "Invalid UUID"}), 400
 
-    meeting = mongo.db.meetings.find_one({"meeting_id": uid})
-    if not meeting:
-        return jsonify({"error": "Meeting not found"}), 404
+        meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+        if not meeting:
+            return jsonify({"error": "Meeting not found"}), 404
 
-    agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
+        agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
-    return jsonify(serialize_meeting(meeting, agenda_items)), 200
+        return _corsify_actual_response(jsonify(serialize_meeting(meeting, agenda_items))), 200
 
-@app.patch("/meetings/<id>")
+@app.route("/meetings/<id>", methods=["PATCH", "OPTIONS"])
 def update_meeting(id):
     """
     PATCH /meetings/{id}
     Update meeting fields such as current_item.
     """
-    uid = to_uuid(id)
-    if not uid:
-        return jsonify({"error": "Invalid UUID"}), 400
+    if request.method == "OPTIONS": # CORS preflight
+        return _build_cors_preflight_response()
+    elif request.method == "PATCH":
+        uid = to_uuid(id)
+        if not uid:
+            return jsonify({"error": "Invalid UUID"}), 400
 
-    meeting = mongo.db.meetings.find_one({"meeting_id": uid})
-    if not meeting:
-        return jsonify({"error": "Meeting not found"}), 404
+        meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+        if not meeting:
+            return jsonify({"error": "Meeting not found"}), 404
 
-    body = request.get_json()
-    if not body:
-        return jsonify({"error": "Request body required"}), 400
+        body = request.get_json()
+        if not body:
+            return jsonify({"error": "Request body required"}), 400
 
-    update_fields = {}
+        update_fields = {}
 
-    # Validate and update current_item
-    if "current_item" in body:
-        new_index = body["current_item"]
+        # Validate and update current_item
+        if "current_item" in body:
+            new_index = body["current_item"]
 
-        if type(new_index) is not int or new_index < 0:
-            return jsonify({"error": "current_item must be a non-negative integer"}), 400
+            if type(new_index) is not int or new_index < 0:
+                return jsonify({"error": "current_item must be a non-negative integer"}), 400
 
-        # Count agenda items
-        item_count = mongo.db.agenda_items.count_documents({"meeting_id": uid})
+            # Count agenda items
+            item_count = mongo.db.agenda_items.count_documents({"meeting_id": uid})
 
-        # Check if index is within valid range
-        if new_index >= item_count:
-            return jsonify({
-                "error": "current_item is out of range",
-                "max_valid_index": max(item_count - 1, 0),
-                "agenda_items": item_count
-            }), 400
+            # Check if index is within valid range
+            if new_index >= item_count:
+                return jsonify({
+                    "error": "current_item is out of range",
+                    "max_valid_index": max(item_count - 1, 0),
+                    "agenda_items": item_count
+                }), 400
 
-        update_fields["current_item"] = new_index
+            update_fields["current_item"] = new_index
 
-    if not update_fields:
-        return jsonify({"error": "No valid fields to update"}), 400
+        if not update_fields:
+            return jsonify({"error": "No valid fields to update"}), 400
 
-    # Apply patch
-    mongo.db.meetings.update_one(
-        {"meeting_id": uid},
-        {"$set": update_fields}
-    )
+        # Apply patch
+        mongo.db.meetings.update_one(
+            {"meeting_id": uid},
+            {"$set": update_fields}
+        )
 
-    # Return updated meeting
-    updated_meeting = mongo.db.meetings.find_one({"meeting_id": uid})
-    items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
+        # Return updated meeting
+        updated_meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+        items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
-    return jsonify(serialize_meeting(updated_meeting, items)), 200
-
+        return _corsify_actual_response(jsonify(serialize_meeting(updated_meeting, items))), 200
 
 @app.post("/meetings/<id>/agenda")
 def add_agenda_item(id):
@@ -243,64 +248,71 @@ def add_agenda_item(id):
     POST /meetings/{id}/agenda
     Add an agenda item to meeting.
     """
-    uid = to_uuid(id)
-    if not uid:
-        return jsonify({"error": "Invalid UUID"}), 400
+    if request.method == "OPTIONS": # CORS preflight
+        return _build_cors_preflight_response()
+    elif request.method == "POST":
+        uid = to_uuid(id)
+        if not uid:
+            return jsonify({"error": "Invalid UUID"}), 400
 
-    meeting = mongo.db.meetings.find_one({"meeting_id": uid})
-    if not meeting:
-        return jsonify({"error": "Meeting not found"}), 404
+        meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+        if not meeting:
+            return jsonify({"error": "Meeting not found"}), 404
 
-    body = request.get_json()
-    if not body or "item" not in body:
-        return jsonify({"error": "item required"}), 400
+        body = request.get_json()
+        if not body or "item" not in body:
+            return jsonify({"error": "item required"}), 400
 
-    item = serialize_agenda_item(body["item"])
+        item = serialize_agenda_item(body["item"])
 
-    # Insert agenda item under meeting
-    mongo.db.agenda_items.insert_one({
-        "meeting_id": uid,
-        **item
-    })
+        # Insert agenda item under meeting
+        mongo.db.agenda_items.insert_one({
+            "meeting_id": uid,
+            **item
+        })
 
-    return jsonify({"message": "Agenda item added"}), 201
+        return _corsify_actual_response(jsonify({"message": "Agenda item added"})), 201
 
 
-@app.get("/meetings/<id>/agenda")
+@app.route("/meetings/<id>/agenda", methods=["GET", "OPTIONS"])
 def get_agenda_items(id):
     """
     GET /meetings/{id}/agenda
     Returns all agenda items for the meeting.
     """
-    uid = to_uuid(id)
-    if not uid:
-        return jsonify({"error": "Invalid UUID"}), 400
+    if request.method == "OPTIONS": # CORS preflight
+        return _build_cors_preflight_response()
+    elif request.method == "GET":
+        uid = to_uuid(id)
+        if not uid:
+            return jsonify({"error": "Invalid UUID"}), 400
 
-    meeting = mongo.db.meetings.find_one({"meeting_id": uid})
-    if not meeting:
-        return jsonify({"error": "Meeting not found"}), 404
+        meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+        if not meeting:
+            return jsonify({"error": "Meeting not found"}), 404
 
-    agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
+        agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
-    return jsonify(agenda_items), 200
+        return _corsify_actual_response(jsonify(agenda_items)), 200
 
-@app.get("/code/<code>")
+@app.route("/code/<code>", methods=["GET", "OPTIONS"])
 def get_meeting_id_from_code(code):
     """
     GET /code/{code}
     Returns the meeting UUID in plain text.
     """
+    if request.method == "OPTIONS": # CORS preflight
+        return _build_cors_preflight_response()
+    elif request.method == "GET":
+        # Validate length & numeric
+        if len(code) != 6 or not code.isdigit():
+            return jsonify({"error": "Invalid meeting code format"}), 400
 
-    # Validate length & numeric
-    if len(code) != 6 or not code.isdigit():
-        return jsonify({"error": "Invalid meeting code format"}), 400
+        meeting = mongo.db.meetings.find_one({"meeting_code": code})
+        if not meeting:
+            return "", 404
 
-    meeting = mongo.db.meetings.find_one({"meeting_code": code})
-    if not meeting:
-        return "", 404
-
-    return meeting["meeting_id"], 200
-
+        return _corsify_actual_response(meeting["meeting_id"]), 200
 
 # Root health check (for Kubernetes)
 @app.get("/")
@@ -318,7 +330,6 @@ def private():
 @app.route("/public")
 def public():
     return {"message": "Public route"}
-
 
 
 if __name__ == "__main__":
