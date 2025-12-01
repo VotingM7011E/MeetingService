@@ -43,6 +43,7 @@ def serialize_meeting(doc, items):
         "meeting_id": doc["meeting_id"],
         "meeting_name": doc["meeting_name"],
         "current_item": doc.get("current_item", 0),
+        "meeting_code": doc["meeting_code"],
         "items": items
     }
 
