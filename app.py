@@ -128,13 +128,12 @@ def after_request(response):
     # Other headers can be added here if needed
     return response
 
-@blueprint.route("/meetings", methods=["POST", "OPTIONS"])
+@blueprint.post("/meetings")
 def create_meeting():
     """
     POST /meetings
     Create a new meeting.
     """
-   
     body = request.get_json()
     if not body or "meeting_name" not in body:
         return jsonify({"error": "meeting_name required"}), 400
