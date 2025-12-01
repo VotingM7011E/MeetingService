@@ -165,20 +165,17 @@ def get_meeting(id):
     GET /meetings/{id}/
     Return meeting info.
     """
-    if request.method == "OPTIONS": # CORS preflight
-        return _build_cors_preflight_response()
-    elif request.method == "GET":
-        uid = to_uuid(id)
-        if not uid:
-            return jsonify({"error": "Invalid UUID"}), 400
+    uid = to_uuid(id)
+    if not uid:
+        return jsonify({"error": "Invalid UUID"}), 400
 
-        meeting = mongo.db.meetings.find_one({"meeting_id": uid})
-        if not meeting:
-            return jsonify({"error": "Meeting not found"}), 404
+    meeting = mongo.db.meetings.find_one({"meeting_id": uid})
+    if not meeting:
+        return jsonify({"error": "Meeting not found"}), 404
 
-        agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
+    agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
-        return jsonify(serialize_meeting(meeting, agenda_items)), 200
+    return jsonify(serialize_meeting(meeting, agenda_items)), 200
 
 @blueprint.patch("/meetings/<id>")
 def update_meeting(id):
