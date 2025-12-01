@@ -115,36 +115,53 @@ def serialize_agenda_item(item):
 # Endpoints
 # ---------------------------
 
-@app.post("/meetings")
+
+def _build_cors_preflight_response():
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add('Access-Control-Allow-Headers', "*")
+    response.headers.add('Access-Control-Allow-Methods', "*")
+    return response
+
+
+def _corsify_actual_response(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
+
+@app.route("/meetings", methods=["POST", "OPTIONS"])
 def create_meeting():
     """
     POST /meetings
     Create a new meeting.
     """
-    body = request.get_json()
-    if not body or "meeting_name" not in body:
-        return jsonify({"error": "meeting_name required"}), 400
+    if request.method == "OPTIONS": # CORS preflight
+        return _build_cors_preflight_response()
+    elif request.method == "POST":
+        body = request.get_json()
+        if not body or "meeting_name" not in body:
+            return jsonify({"error": "meeting_name required"}), 400
 
-    meeting_id = str(uuid.uuid4())
-    meeting_code = generate_unique_meeting_code()
+        meeting_id = str(uuid.uuid4())
+        meeting_code = generate_unique_meeting_code()
 
-    mongo.db.meetings.insert_one({
-        "meeting_id": meeting_id,
-        "meeting_name": body["meeting_name"],
-        "current_item": 0,
-        "meeting_code": meeting_code
-    })
+        mongo.db.meetings.insert_one({
+            "meeting_id": meeting_id,
+            "meeting_name": body["meeting_name"],
+            "current_item": 0,
+            "meeting_code": meeting_code
+        })
 
-    created = {
-        "meeting_id": meeting_id,
-        "meeting_name": body["meeting_name"],
-        "current_item": 0,
-        "items": [],
-        "meeting_code": meeting_code
-    }
+        created = {
+            "meeting_id": meeting_id,
+            "meeting_name": body["meeting_name"],
+            "current_item": 0,
+            "items": [],
+            "meeting_code": meeting_code
+        }
 
-    return jsonify(created), 201
-
+        return _corsify_actual_response(jsonify(created)), 201
+    else:
+        raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
 
 @app.get("/meetings/<id>/")
 def get_meeting(id):
@@ -301,6 +318,7 @@ def private():
 @app.route("/public")
 def public():
     return {"message": "Public route"}
+
 
 
 if __name__ == "__main__":
