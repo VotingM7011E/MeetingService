@@ -177,7 +177,7 @@ def get_meeting(id):
 
     return jsonify(serialize_meeting(meeting, agenda_items)), 200
 
-@blueprint.patch("/meetings/<id>")
+@blueprint.route("/meetings/<id>", methods=["PATCH"])
 def update_meeting(id):
     """
     PATCH /meetings/{id}
