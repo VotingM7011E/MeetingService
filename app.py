@@ -58,7 +58,7 @@ def verify_agenda_item(item):
         case "election":
             if "positions" not in item or not (type(item["positions"]) is list):
                 return jsonify({"error": "Election agenda item must have positions list"}), 400
-            for position in type["positions"]:
+            for position in item["positions"]:
                 if not (type(position) is str):
                     return jsonify({"error": "Election agenda item positions must be strings"}), 400
         case "motion":
@@ -67,8 +67,8 @@ def verify_agenda_item(item):
 
             if "baseMotions" not in item or not (type(item["baseMotions"]) is list):
                 return jsonify({"error": "Motion agenda item must have baseMotions list"}), 400
-            for baseMotion in type["baseMotions"]:
-                if not (type(baseMotion) is object):
+            for baseMotion in item["baseMotions"]:
+                if not isinstance(baseMotion, dict):
                     return jsonify({"error": "Motion agenda item baseMotions must be objects"}), 400
 
                 if "owner" not in baseMotion or not (type(baseMotion["owner"]) is str):
