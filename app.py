@@ -90,7 +90,7 @@ def serialize_agenda_item(item):
     """Verifies agenda item and return only proper data fields"""
     result = verify_agenda_item(item)
     if result is not None:
-        return None
+        return result
     
     match item["type"]:
         case "election":
@@ -258,7 +258,9 @@ def add_agenda_item(id):
     item = serialize_agenda_item(body["item"])
     if item is None:
         return jsonify({"error": "Invalid agenda item type"}), 400
-
+    if item is tuple:
+        return item
+    
     # Insert agenda item under meeting
     mongo.db.agenda_items.insert_one({
         "meeting_id": uid,
