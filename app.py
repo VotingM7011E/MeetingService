@@ -258,7 +258,7 @@ def add_agenda_item(id):
     item = serialize_agenda_item(body["item"])
     if item is None:
         return jsonify({"error": "Invalid agenda item type"}), 400
-    if item is tuple:
+    if isinstance(item, tuple):
         return item
     
     # Insert agenda item under meeting
