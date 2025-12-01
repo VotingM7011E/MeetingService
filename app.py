@@ -125,6 +125,8 @@ def serialize_agenda_item(item):
 def after_request(response):
     header = response.headers
     header['Access-Control-Allow-Origin'] = '*'
+    header['Access-Control-Allow-Headers'] = "*"
+    header['Access-Control-Allow-Methods'] = "*"
     # Other headers can be added here if needed
     return response
 
