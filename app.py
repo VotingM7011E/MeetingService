@@ -51,7 +51,7 @@ def verify_agenda_item(item):
     if "type" not in item:
         return jsonify({"error": "Agenda item must include type"}), 400
 
-    if ("title" not in item) or (type(item["title"]) is str):
+    if ("title" not in item) or not (type(item["title"]) is str):
         return jsonify({"error": "Agenda item must have title"}), 400
 
     match item["type"]:
