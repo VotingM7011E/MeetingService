@@ -179,7 +179,7 @@ def get_meeting(id):
 
         agenda_items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
-        return _corsify_actual_response(jsonify(serialize_meeting(meeting, agenda_items))), 200
+        return jsonify(serialize_meeting(meeting, agenda_items)), 200
 
 @blueprint.patch("/meetings/<id>")
 def update_meeting(id):
