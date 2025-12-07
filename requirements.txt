@@ -3,3 +3,7 @@ flask-pymongo
 python-jose 
 requests 
 cachetools
+flask-socketio
+gevent
+flask-cors
+redis

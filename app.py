@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response,render_template
 from flask import Blueprint
 
 from flask_pymongo import PyMongo
@@ -6,6 +6,8 @@ from keycloak_auth import keycloak_protect
 import os
 import uuid
 import random
+
+from flask_socketio import SocketIO,join_room, leave_room, emit
 
 blueprint = Blueprint('blueprint', __name__)
 
@@ -17,6 +19,34 @@ if not app.config["MONGO_URI"]:
     raise RuntimeError("MONGO_URI not set")
 
 mongo = PyMongo(app)
+socketio = SocketIO(app, cors_allowed_origins="https://frontend.ltu-m7011e-2.se",
+                    message_queue=os.getenv("REDIS_URL", None))
+
+# ---------------------------
+# SocketIO Events
+# ---------------------------
+
+#@socketio.on('connect')
+#def on_connect(auth):
+#   token = auth.get('token') if auth else None
+    # validate token (Keycloak) and set user info (or disconnect)
+
+@socketio.on('join')
+def on_join(data):
+    meeting_id = data['meeting_id']
+    join_room(meeting_id)
+    emit('status', {'msg': f'User has entered the meeting {meeting_id}.'}, room=meeting_id)
+
+@socketio.on('leave')
+def on_leave(data):
+    meeting_id = data['meeting_id']
+    leave_room(meeting_id)
+    emit('status', {'msg': f'User has left the meeting {meeting_id}.'}, room=meeting_id)
+
+@socketio.on('Next Agenda Item')
+def moving_on_to_next_agenda_item(data):
+    emit('Next Agenda Item', data, room=data['meeting_id'])
+
 
 # ---------------------------
 # Utility functions
@@ -232,6 +262,9 @@ def update_meeting(id):
     updated_meeting = mongo.db.meetings.find_one({"meeting_id": uid})
     items = list(mongo.db.agenda_items.find({"meeting_id": uid}))
 
+    socketio.emit('Next Agenda Item', {"meeting_id": uid, "current_item": new_index}, room=uid)
+    socketio.emit('meeting_updated', serialize_meeting(updated_meeting, items), room=uid)
+
     return jsonify(serialize_meeting(updated_meeting, items)), 200
 
 @blueprint.post("/meetings/<id>/agenda")
@@ -260,10 +293,13 @@ def add_agenda_item(id):
         return item
     
     # Insert agenda item under meeting
-    mongo.db.agenda_items.insert_one({
+    inserted = mongo.db.agenda_items.insert_one({
         "meeting_id": uid,
         **item
     })
+
+    # Emit WebSocket event to notify clients
+    socketio.emit('agenda_item_added', {"meeting_id": uid, "item": item}, room=uid)
 
     return jsonify({"message": "Agenda item added"}), 201
 
@@ -321,4 +357,4 @@ def public():
 app.register_blueprint(blueprint)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=80)
+    socketio.run(app, host="0.0.0.0", port=8000) 
