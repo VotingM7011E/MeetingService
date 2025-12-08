@@ -73,12 +73,18 @@ def generate_unique_meeting_code():
 
 def serialize_meeting(doc, items):
     """Combine meeting and agenda items into Meeting schema format."""
+    # Remove MongoDB _id fields from items to make them JSON serializable
+    serialized_items = []
+    for item in items:
+        item_copy = {k: v for k, v in item.items() if k != '_id'}
+        serialized_items.append(item_copy)
+    
     return {
         "meeting_id": doc["meeting_id"],
         "meeting_name": doc["meeting_name"],
         "current_item": doc.get("current_item", 0),
         "meeting_code": doc["meeting_code"],
-        "items": items
+        "items": serialized_items
     }
 
 def verify_agenda_item(item):
