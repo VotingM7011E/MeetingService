@@ -22,7 +22,7 @@ if not app.config["MONGO_URI"]:
     raise RuntimeError("MONGO_URI not set")
 
 mongo = PyMongo(app)
-socketio = SocketIO(app, cors_allowed_origins="https://voting-dev.ltu-m7011e-2.se",
+socketio = SocketIO(app, cors_allowed_origins="*", #Changing this to * for testing purposes
                     message_queue=os.getenv("REDIS_URL", None),
                     async_mode='gevent')
 
