@@ -1,3 +1,6 @@
+from gevent import monkey
+monkey.patch_all() # Enables websocket to handle multiple connections effectively
+
 from flask import Flask, request, jsonify, make_response,render_template
 from flask import Blueprint
 
@@ -19,8 +22,9 @@ if not app.config["MONGO_URI"]:
     raise RuntimeError("MONGO_URI not set")
 
 mongo = PyMongo(app)
-socketio = SocketIO(app, cors_allowed_origins="https://frontend.ltu-m7011e-2.se",
-                    message_queue=os.getenv("REDIS_URL", None))
+socketio = SocketIO(app, cors_allowed_origins="https://voting-dev.ltu-m7011e-2.se",
+                    message_queue=os.getenv("REDIS_URL", None),
+                    async_mode='gevent')
 
 # ---------------------------
 # SocketIO Events
@@ -357,4 +361,4 @@ def public():
 app.register_blueprint(blueprint)
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=8000) 
+    socketio.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 5000))) 
