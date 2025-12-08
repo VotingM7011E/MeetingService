@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY . .
 
 # Expose port 8000
-EXPOSE 8000
+EXPOSE 80
 
 # Environment variables
 ENV FLASK_APP=app.py
