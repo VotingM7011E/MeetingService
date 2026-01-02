@@ -37,6 +37,7 @@ jobs:
             build:
               - 'Dockerfile'
               - 'app.py'
+              - 'keycloak_auth.py'
               - '.github/workflows/**'
 
       - name: Stop early if no build needed
