@@ -180,6 +180,8 @@ def create_meeting():
     if not body or "meeting_name" not in body:
         return jsonify({"error": "meeting_name required"}), 400
 
+    print(jsonify(request.user))
+
     meeting_id = str(uuid.uuid4())
     meeting_code = generate_unique_meeting_code()
 
