@@ -171,6 +171,7 @@ def after_request(response):
     return response
 
 @blueprint.post("/meetings")
+@keycloak_protect
 def create_meeting():
     """
     POST /meetings
