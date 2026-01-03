@@ -301,24 +301,24 @@ def update_meeting(meeting_id):
 
     return jsonify(serialize_meeting(updated_meeting, items)), 200
 
-@blueprint.post("/meetings/<id>/agenda")
+@blueprint.post("/meetings/<meeting_id>/agenda")
 @keycloak_protect
-def add_agenda_item(id):
+def add_agenda_item(meeting_id):
     """
-    POST /meetings/{id}/agenda
+    POST /meetings/{meeting_id}/agenda
     Add an agenda item to meeting.
     """
     
+    uid = to_uuid(meeting_id)
+    if not uid:
+        return jsonify({"error": "Invalid UUID"}), 400
+
     user_id = request.user["preferred_username"]
     if not user_id: 
         return jsonify({"error": "Unauthorized'"}), 401
 
     if not check_role(request.user, meeting_id, "manage"):
         return jsonify({"error": "Forbidden"}), 403
-
-    uid = to_uuid(id)
-    if not uid:
-        return jsonify({"error": "Invalid UUID"}), 400
 
     meeting = mongo.db.meetings.find_one({"meeting_id": uid})
     if not meeting:
