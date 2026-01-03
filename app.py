@@ -384,18 +384,6 @@ def get_meeting_id_from_code(code):
 def root():
     return "MeetingService API running"
 
-@app.route("/private")
-@keycloak_protect
-def private():
-    return jsonify({
-        "message": "Protected route",
-        "user": request.user
-    })
-
-@app.route("/public")
-def public():
-    return {"message": "Public route"}
-
 app.register_blueprint(blueprint)
 
 if __name__ == "__main__":
