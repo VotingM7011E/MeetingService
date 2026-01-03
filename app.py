@@ -6,6 +6,7 @@ from flask import Blueprint
 
 from flask_pymongo import PyMongo
 from keycloak_auth import keycloak_protect
+from mq import publish_event
 import os
 import uuid
 import random
@@ -177,6 +178,10 @@ def create_meeting():
     POST /meetings
     Create a new meeting.
     """
+    user_id = request.user.preferred_username
+    if not user_id: 
+        return jsonify({"error": "Unauthorized'"}), 401
+
     body = request.get_json()
     if not body or "meeting_name" not in body:
         return jsonify({"error": "meeting_name required"}), 400
@@ -192,6 +197,14 @@ def create_meeting():
         "current_item": 0,
         "meeting_code": meeting_code
     })
+
+    publish_event(
+        routing_key="permission.create_meeting",
+        data={
+            "meeting_id": meeting_id,
+            "creator_username": user_id
+        }
+    )
 
     created = {
         "meeting_id": meeting_id,
@@ -221,17 +234,25 @@ def get_meeting(id):
 
     return jsonify(serialize_meeting(meeting, agenda_items)), 200
 
-@blueprint.route("/meetings/<id>/", methods=["PATCH"])
-def update_meeting(id):
+@blueprint.patch("/meetings/<meeting_id>")
+@keycloak_protect
+def update_meeting(meeting_id):
     """
-    PATCH /meetings/{id}
+    PATCH /meetings/{meeting_id}
     Update meeting fields such as current_item.
     """
     
-    uid = to_uuid(id)
+    uid = to_uuid(meeting_id)
     if not uid:
         return jsonify({"error": "Invalid UUID"}), 400
 
+    user_id = request.user.preferred_username
+    if not user_id: 
+        return jsonify({"error": "Unauthorized'"}), 401
+
+    if not check_role(request.user, meeting_id, "manage"):
+        return jsonify({"error": "Forbidden"}), 403
+    
     meeting = mongo.db.meetings.find_one({"meeting_id": uid})
     if not meeting:
         return jsonify({"error": "Meeting not found"}), 404
@@ -281,12 +302,20 @@ def update_meeting(id):
     return jsonify(serialize_meeting(updated_meeting, items)), 200
 
 @blueprint.post("/meetings/<id>/agenda")
+@keycloak_protect
 def add_agenda_item(id):
     """
     POST /meetings/{id}/agenda
     Add an agenda item to meeting.
     """
-   
+    
+    user_id = request.user.preferred_username
+    if not user_id: 
+        return jsonify({"error": "Unauthorized'"}), 401
+
+    if not check_role(request.user, meeting_id, "manage"):
+        return jsonify({"error": "Forbidden"}), 403
+
     uid = to_uuid(id)
     if not uid:
         return jsonify({"error": "Invalid UUID"}), 400

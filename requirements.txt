@@ -8,3 +8,4 @@ gevent
 gevent-websocket
 flask-cors
 redis
+pika

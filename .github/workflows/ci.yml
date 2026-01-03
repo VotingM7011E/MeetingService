@@ -38,6 +38,7 @@ jobs:
               - 'Dockerfile'
               - 'app.py'
               - 'keycloak_auth.py'
+              - 'mq.py'
               - '.github/workflows/**'
 
       - name: Stop early if no build needed
