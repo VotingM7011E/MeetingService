@@ -178,7 +178,7 @@ def create_meeting():
     POST /meetings
     Create a new meeting.
     """
-    user_id = request.user.preferred_username
+    user_id = request.user["preferred_username"]
     if not user_id: 
         return jsonify({"error": "Unauthorized'"}), 401
 
@@ -246,7 +246,7 @@ def update_meeting(meeting_id):
     if not uid:
         return jsonify({"error": "Invalid UUID"}), 400
 
-    user_id = request.user.preferred_username
+    user_id = request.user["preferred_username"]
     if not user_id: 
         return jsonify({"error": "Unauthorized'"}), 401
 
@@ -309,7 +309,7 @@ def add_agenda_item(id):
     Add an agenda item to meeting.
     """
     
-    user_id = request.user.preferred_username
+    user_id = request.user["preferred_username"]
     if not user_id: 
         return jsonify({"error": "Unauthorized'"}), 401
 
