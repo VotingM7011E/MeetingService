@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify, make_response,render_template
 from flask import Blueprint
 
 from flask_pymongo import PyMongo
-from keycloak_auth import keycloak_protect
+from keycloak_auth import keycloak_protect, check_role
 from mq import publish_event
 import os
 import uuid
