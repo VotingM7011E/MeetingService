@@ -234,7 +234,7 @@ def get_meeting(id):
 
     return jsonify(serialize_meeting(meeting, agenda_items)), 200
 
-@blueprint.patch("/meetings/<meeting_id>")
+@blueprint.patch("/meetings/<meeting_id>/")
 @keycloak_protect
 def update_meeting(meeting_id):
     """
