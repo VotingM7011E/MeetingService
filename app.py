@@ -299,6 +299,41 @@ def update_meeting(meeting_id):
     socketio.emit('Next Agenda Item', {"meeting_id": uid, "current_item": new_index}, room=uid)
     socketio.emit('meeting_updated', serialize_meeting(updated_meeting, items), room=uid)
 
+    # If the new agenda item is a motion, publish a creation event to MotionService
+    try:
+        if isinstance(new_index, int) and new_index < len(items):
+            current_item = items[new_index]
+            if current_item.get("type") == "motion":
+                motion_item_id = current_item.get("motion_item_id")
+                # ensure motion_item_id exists
+                if not motion_item_id:
+                    motion_item_id = str(uuid.uuid4())
+                    mongo.db.agenda_items.update_one(
+                        {"_id": current_item.get("_id")},
+                        {"$set": {"motion_item_id": motion_item_id}}
+                    )
+
+                # only publish once
+                if not current_item.get("motion_published"):
+                    motions = current_item.get("baseMotions") or []
+                    publish_event(
+                        routing_key="motion.create_motion_item",
+                        data={
+                            "meeting_id": uid,
+                            "motion_item_id": motion_item_id,
+                            "motions": motions,
+                        }
+                    )
+
+                    # mark published so we don't publish again
+                    mongo.db.agenda_items.update_one(
+                        {"_id": current_item.get("_id")},
+                        {"$set": {"motion_published": True}}
+                    )
+    except Exception:
+        # best-effort; do not fail meeting update on publish errors
+        pass
+
     return jsonify(serialize_meeting(updated_meeting, items)), 200
 
 @blueprint.post("/meetings/<meeting_id>/agenda")
@@ -334,6 +369,11 @@ def add_agenda_item(meeting_id):
     if isinstance(item, tuple):
         return item
     
+    # If motion item, generate a motion_item_id so it can be referenced later
+    if item.get("type") == "motion":
+        item["motion_item_id"] = str(uuid.uuid4())
+        item["motion_published"] = False
+
     # Insert agenda item under meeting
     inserted = mongo.db.agenda_items.insert_one({
         "meeting_id": uid,
@@ -344,6 +384,55 @@ def add_agenda_item(meeting_id):
     socketio.emit('agenda_item_added', {"meeting_id": uid, "item": item}, room=uid)
 
     return jsonify({"message": "Agenda item added"}), 201
+
+
+@blueprint.post("/meetings/<meeting_id>/agenda/<motion_item_id>/start_vote")
+@keycloak_protect
+def start_vote_endpoint(meeting_id, motion_item_id):
+    """POST /meetings/{meeting_id}/agenda/{motion_item_id}/start_vote
+    Requires `manage` role. Publishes `motion.start_voting` (MQ-only).
+    Optional JSON body: { "options": [...], "pollType": "single"|"ranked" }
+    """
+    uid = to_uuid(meeting_id)
+    if not uid:
+        return jsonify({"error": "Invalid UUID"}), 400
+
+    user_id = request.user["preferred_username"]
+    if not user_id:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    if not check_role(request.user, meeting_id, "manage"):
+        return jsonify({"error": "Forbidden"}), 403
+
+    # Find the agenda item
+    agenda_item = mongo.db.agenda_items.find_one({"meeting_id": uid, "motion_item_id": motion_item_id})
+    if not agenda_item:
+        return jsonify({"error": "Motion agenda item not found"}), 404
+
+    # Only allow starting the vote if the motion has been published (motion_published == True)
+    if not agenda_item.get("motion_published"):
+        return jsonify({"error": "Motion not published; cannot start vote"}), 409
+
+    # Build start voting event
+    body = request.get_json(silent=True) or {}
+    options = body.get("options") or agenda_item.get("baseMotions") or ["yes", "no", "abstain"]
+    poll_type = body.get("pollType") or "single"
+
+    # Publish MQ event to MotionService which will in turn publish to VotingService
+    try:
+        publish_event(
+            routing_key="motion.start_voting",
+            data={
+                "meeting_id": uid,
+                "motion_item_id": motion_item_id,
+                "options": options,
+                "pollType": poll_type,
+            }
+        )
+    except Exception:
+        return jsonify({"error": "Failed to publish start_voting event"}), 500
+
+    return jsonify({"message": "Start voting requested"}), 202
 
 @blueprint.get("/meetings/<id>/agenda")
 def get_agenda_items(id):
